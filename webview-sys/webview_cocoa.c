@@ -241,6 +241,67 @@ static void make_nav_policy_decision(id self, SEL cmd, id webView, id response,
   }
 }
 
+// A type of item associated with an ItemSpec
+typedef enum ItemType { Element, Separator } ItemType;
+
+// A specification for a menu item
+typedef struct ItemSpec {
+  const ItemType type;
+  const char* name;
+  const char* action;
+  const char* keyEquivalent;
+} ItemSpec;
+
+// Adds an item based on the spec and type to the menu
+static void add_item_to_menu(id menu, ItemSpec* spec) {
+  id item;
+  if (spec->type == Separator) {
+    item = objc_msgSend((id)objc_getClass("NSMenuItem"), sel_registerName("separatorItem"));
+  } else {
+    item = create_menu_item(get_nsstring(spec->name), spec->action, spec->keyEquivalent);
+  }
+  objc_msgSend(item, sel_registerName("autorelease"));
+  objc_msgSend(menu, sel_registerName("addItem:"), item);
+}
+
+static id create_menu(id parent, const char* name) {
+  // create a new NSMenuItem for the menu
+  id menuItem = objc_msgSend((id)objc_getClass("NSMenuItem"), sel_registerName("alloc"));
+  // initialize the menu item
+  objc_msgSend(
+      (id)menuItem,
+      sel_registerName("initWithTitle:action:keyEquivalent:"),
+      get_nsstring("Edit"),
+      NULL,
+      get_nsstring("")
+  );
+  // create a new NSMenu for the contents of the menu
+  id menu = objc_msgSend((id)objc_getClass("NSMenu"), sel_registerName("alloc"));
+  // Initialize the menu w/ the title
+  objc_msgSend(menu, sel_registerName("initWithTitle:"), get_nsstring(name));
+  // Use the autorelease pool for managing the object lifetime
+  objc_msgSend(menu, sel_registerName("autorelease"));
+
+  // Register the menu w/ the MenuItem
+  objc_msgSend(menuItem, sel_registerName("setSubmenu:"), menu);
+  // Add the menu item to the parent
+  objc_msgSend(parent, sel_registerName("addItem:"), menuItem);
+
+  return menu;
+}
+
+const ItemSpec EDIT_MENU_ITEMS[] = {
+    { .name = "Undo", .action = "undo:", .keyEquivalent = "z" },
+    { .name = "Redo", .action = "redo:", .keyEquivalent = "Z" },
+    { .type = Separator },
+    // https://developer.apple.com/documentation/uikit/uiresponderstandardeditactions?language=objc
+    { .name = "Cut", .action = "cut:", .keyEquivalent = "x" },
+    { .name = "Copy", .action = "copy:", .keyEquivalent = "c" },
+    { .name = "Paste", .action = "paste:", .keyEquivalent = "v" },
+    { .name = "Delete", .action = "delete:", .keyEquivalent = "" },
+    { .name = "Select All", .action = "selectAll:", .keyEquivalent = "a" },
+};
+
 WEBVIEW_API int webview_init(webview_t w) {
   struct cocoa_webview* wv = (struct cocoa_webview*)w;
   wv->priv.pool = objc_msgSend((id)objc_getClass("NSAutoreleasePool"),
@@ -514,6 +575,16 @@ WEBVIEW_API int webview_init(webview_t w) {
   objc_msgSend(objc_msgSend((id)objc_getClass("NSApplication"),
                             sel_registerName("sharedApplication")),
                sel_registerName("setMainMenu:"), menubar);
+
+  // Create edit menu
+  id editMenu = create_menu(menubar, "Edit");
+  size_t editMenuLen = sizeof(EDIT_MENU_ITEMS) / sizeof(ItemSpec);
+
+  // Add items to edit menu
+  for (uint i = 0; i < editMenuLen; i++) {
+    ItemSpec spec = EDIT_MENU_ITEMS[i];
+    add_item_to_menu(editMenu, &spec);
+  }
 
   wv->priv.should_exit = 0;
   return 0;
