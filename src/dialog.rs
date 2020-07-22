@@ -1,13 +1,13 @@
 use std::path::PathBuf;
-use tfd::MessageBoxIcon;
-use {WVResult, WebView};
+use crate::tfd::MessageBoxIcon;
+use crate::{WVResult, WebView};
 
 /// A builder for opening a new dialog window.
 #[deprecated(
     note = "Please use crates like 'tinyfiledialogs' for dialog handling, see example in examples/dialog.rs"
 )]
 #[derive(Debug)]
-pub struct DialogBuilder<'a: 'b, 'b, T: 'a> {
+pub struct DialogBuilder<'a, 'b, T> {
     webview: &'b mut WebView<'a, T>,
 }
 
